@@ -1,0 +1,213 @@
+You are a senior frontend engineer.
+
+Fix the **carousel preview interaction + spacing system** on the Create Content page AND update backend configuration keys across the application.
+
+---
+
+# 🎯 0. GLOBAL CONFIG UPDATE (MANDATORY)
+
+## CURRENT ISSUE:
+
+* Using outdated keys:
+
+  * `EMERGENT_LLM_KEY`
+  * `MONGO_URL`
+
+---
+
+## ✅ REQUIRED:
+
+👉 Replace across ENTIRE application:
+
+### REMOVE:
+
+* EMERGENT_LLM_KEY
+* MONGO_URL
+
+---
+
+### ADD:
+
+* `OPENAI_API_KEY` → for all AI generation
+* `NEXT_PUBLIC_SUPABASE_URL`
+* `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+---
+
+## 🔧 IMPLEMENT:
+
+* Update `.env` file
+* Update all API calls using old LLM → switch to OpenAI
+* Replace MongoDB usage with Supabase (DB + Auth if used)
+* Ensure no leftover references to old keys
+
+---
+
+## ❌ DO NOT:
+
+* keep legacy keys
+* mix old + new systems
+
+---
+
+---
+
+# 🎯 1. REMOVE CURSOR-BASED MOVEMENT
+
+## ❌ CURRENT:
+
+* Slides move when mouse/cursor moves ❌
+
+---
+
+## ✅ REQUIRED:
+
+👉 Slides MUST move ONLY on:
+
+* Left arrow (←) click
+* Right arrow (→) click
+* Keyboard arrow keys
+
+---
+
+## IMPLEMENT:
+
+```js
+const handleNext = () => setActiveSlide((prev) => prev + 1)
+const handlePrev = () => setActiveSlide((prev) => prev - 1)
+```
+
+---
+
+## KEYBOARD SUPPORT:
+
+```js
+useEffect(() => {
+  const handleKey = (e) => {
+    if (e.key === "ArrowRight") handleNext()
+    if (e.key === "ArrowLeft") handlePrev()
+  }
+  window.addEventListener("keydown", handleKey)
+  return () => window.removeEventListener("keydown", handleKey)
+}, [])
+```
+
+---
+
+## ❌ REMOVE:
+
+* onMouseMove
+* drag-based movement
+* hover scroll logic
+
+---
+
+# 🎯 2. SMOOTH SLIDE ANIMATION
+
+---
+
+## IMPLEMENT:
+
+```jsx
+<div
+  className="flex transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+  style={{
+    transform: `translateX(-${activeSlide * slideWidth}px)`
+  }}
+>
+```
+
+---
+
+## ADD:
+
+```css
+will-change: transform;
+```
+
+---
+
+# 🎯 3. FIX SPACING (MERGED LOOK)
+
+---
+
+## GOAL:
+
+Slides should look **almost merged**, not separated
+
+---
+
+## IMPLEMENT:
+
+```jsx
+className="flex gap-[8px]"
+```
+
+---
+
+## DO NOT:
+
+* use large gaps ❌
+* use margin between slides ❌
+
+---
+
+## OPTIONAL:
+
+```css
+border-right: 1px solid rgba(0,0,0,0.05);
+```
+
+---
+
+# 🎯 4. CONSISTENT SLIDE SIZE
+
+---
+
+## ENSURE:
+
+```jsx
+className="w-[420px] h-[420px] flex-shrink-0"
+```
+
+---
+
+## RESULT:
+
+* No stretching
+* No cut slides
+* Clean alignment
+
+---
+
+# 🎯 5. CLEAN PROFESSIONAL PREVIEW
+
+---
+
+## FINAL UX:
+
+* Smooth left/right slide movement ✅
+* No cursor-triggered movement ✅
+* Small consistent gap (merged look) ✅
+* Stable animation (no jump) ✅
+* Clean, professional feel ✅
+
+---
+
+# ❌ DO NOT:
+
+* use scroll snapping
+* use hover movement
+* create large spacing
+
+---
+
+# ✅ DO:
+
+* use transform animation
+* keep motion smooth
+* maintain visual consistency
+
+---
+
+Implement exactly as specified.

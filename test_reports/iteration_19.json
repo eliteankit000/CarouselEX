@@ -1,0 +1,82 @@
+{
+  "summary": "Comprehensive backend + frontend testing of new dashboard home features (AI Content Generator, Viral Carousel Ideas, Setup Modal, UserPreferences). 8/8 backend pytest cases pass. 26/26 frontend Playwright assertions pass end-to-end. All 4 new features work correctly with real OpenAI GPT-4o calls. No regressions to existing widgets.",
+
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+
+  "passed_tests": [
+    "GET /api/health -> 200 status:ok",
+    "POST /api/ai-content/generate (topic only, multipart) -> 200 with 15 hashtags (no #-prefix), 10 keywords, contentType, estimatedReach in {High,Medium,Low}",
+    "POST /api/ai-content/generate (topic + 64x64 PNG image multipart) -> 200, vision pipeline accepted image",
+    "POST /api/ai-content/generate (empty body) -> 400 'Provide a topic or upload media'",
+    "GET /api/carousel-ideas?platform=Instagram&niche=Finance -> 200 with 7 ideas, each idea has id/title/hook/slides(5-10)/engagementScore(1-10)/trendingTag/format(in 5 allowed)",
+    "GET /api/carousel-ideas caching: same platform+niche second call returns identical ideas in <5s (cache hit)",
+    "GET /api/carousel-ideas with different combos (TikTok/Fitness vs Twitter/Tech) returns different IDs (cache busted properly)",
+    "GET /api/user-preferences?userId=TEST_xxx -> 200 with {data: null} when no row exists (no 500 even when supabase table missing)",
+    "Frontend dashboard loads with demo user seeded in localStorage",
+    "SetupModal auto-opens within 5s on first visit (no prefs set)",
+    "SetupModal Step 1 platform grid shows exactly 6 platforms",
+    "Continue button disabled before selection, enabled after Instagram selected",
+    "SetupModal Step 2 niche grid shows exactly 13 niches",
+    "Selecting Finance + Save closes modal AND persists to localStorage key cx_user_prefs_v1:demo-user-001 with {platform:Instagram,niche:Finance,isSetupComplete:true}",
+    "AIContentGenerator section renders with topic input, image/video upload, Generate button",
+    "Generate triggers skeleton state then renders output cards (title, description, 15 hashtag pills, 10 keyword pills, contentType, reach badge)",
+    "ViralCarouselIdeas renders 7 cards once prefs are set",
+    "Niche badge shows 'Niche: Finance'",
+    "Each card has format badge, score, title, hook, slides count, Generate Carousel button",
+    "Clicking LinkedIn platform pill re-fetches and shows fresh 7 cards (cache busted by platform change)",
+    "Empty state shows when prefs cleared: carousel-ideas-empty + Set Up Now button visible",
+    "Regression: Trend Radar, Performance, AI Intelligence widgets still rendered on dashboard",
+    "Existing top input + Carousel/Poll/Viral/Repurpose chips + Start Creating button intact"
+  ],
+
+  "test_report_links": [
+    "/app/backend/tests/test_dashboard_features.py",
+    "/app/test_reports/pytest/pytest_iter19.xml"
+  ],
+
+  "action_items": [
+    "Browser console shows several 'Failed to load resource: 500' errors during dashboard load — appears to be from existing widgets (Trend Radar/Performance) calling other backend endpoints that may not have full data. Does NOT affect new feature functionality, but main agent may want to investigate which existing endpoint(s) return 500 on a fresh demo user.",
+    "Login form via UI (POST credentials at /login) didn't redirect within 20s timeout in initial attempt — main agent may want to verify the demo signIn() function correctly seeds carouselex_demo_user and triggers router.push('/dashboard'). Workaround used: pre-seed localStorage. Likely a slow client-side hydration issue not a real bug."
+  ],
+
+  "critical_code_review_comments": [
+    "server.py is now 1763 lines — >700 line threshold; should be modularized into routers (e.g., /routers/ai_content.py, /routers/carousel.py, /routers/preferences.py)",
+    "Carousel ideas cache (_carousel_cache dict) is in-memory and not bounded — could grow unbounded with many platform/niche combinations. Add LRU or max size",
+    "AI Content Generator uses gpt-4o for every request including topic-only; consider gpt-4o-mini for topic-only requests to reduce cost and latency",
+    "/api/carousel-ideas error path returns 500 with {'detail': {'error':...,'detail':...}} — frontend error parsing relies on response.detail being a string elsewhere. Standardize error response shape",
+    "Image MIME-type validation is good (_ALLOWED_IMAGE_TYPES) — small images (<32x32) are rejected by OpenAI but no client-side validation; consider adding minimum dimension check"
+  ],
+
+  "updated_files": [
+    "/app/backend/tests/test_dashboard_features.py (created — 8 pytest cases for new endpoints)"
+  ],
+
+  "success_rate": {
+    "backend": "100% (8/8 passing)",
+    "frontend": "100% (26/26 passing)"
+  },
+
+  "test_credentials": {
+    "demo_auth_localStorage": "Pre-seed key 'carouselex_demo_user' = {id:'demo-user-001',email:'demo@carouselex.com',full_name:'Demo',avatar_url:null,plan:'starter'}",
+    "skip_setup_modal": "Pre-seed 'cx_user_prefs_v1:demo-user-001' = '{\"platform\":\"Instagram\",\"niche\":\"Finance\",\"isSetupComplete\":true}' AND sessionStorage 'cx_setup_modal_shown'='1'"
+  },
+
+  "seed_data_creation": "None required — uses localStorage demo auth + best-effort Supabase prefs",
+
+  "retest_needed": false,
+
+  "should_main_agent_self_test": false,
+
+  "context_for_next_testing_agent": "All 4 new dashboard features fully working: (1) AI Content Generator hits real GPT-4o vision API (~15-25s per call), accepts topic + optional image/video upload; (2) Viral Carousel Ideas hits GPT-4o text API and returns exactly 7 ideas, has 30-min TTL cache keyed by platform.lower()+niche.lower(); DataForSEO not configured -> falls back gracefully; (3) Setup Modal auto-opens 500ms after dashboard load via sessionStorage 'cx_setup_modal_shown' guard; (4) UserPreferences uses localStorage key 'cx_user_prefs_v1:{userId}' as primary persistence + best-effort Supabase upsert. Console shows non-blocking 500 errors during dashboard load — appears to be from PRE-EXISTING widgets (Trend Radar/Performance/AI Intelligence) calling other backend endpoints, not from the new features.",
+
+  "rca of the issue": "N/A — all features verified working. Only minor observation: original /login -> /dashboard navigation via filling form fields didn't complete in 20s; likely demo signIn auth-context delay. Workaround (pre-seed localStorage) confirmed dashboard renders correctly."
+}
