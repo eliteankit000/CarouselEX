@@ -2,24 +2,10 @@
 
 import { useState, useRef, useCallback, useMemo } from 'react'
 import {
-  Camera,
-  Play,
-  Sparkles,
-  Loader2,
-  AlertCircle,
-  Hash,
-  Search,
-  Type,
-  FileText,
-  Gauge,
-  Layers,
-  X,
-  RefreshCw,
+  Camera, Play, Sparkles, Loader2, AlertCircle,
+  Hash, Search, Type, FileText, Gauge, Layers, X, RefreshCw, Copy, Check,
 } from 'lucide-react'
 import type { GeneratedContent } from '@/types/content'
-import ContentCard from '@/components/ui/ContentCard'
-import PillBadge from '@/components/ui/PillBadge'
-import SkeletonCard from '@/components/ui/SkeletonCard'
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_APP_URL || ''
 
@@ -32,6 +18,77 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function CopyBtn({ text, testId }: { text: string; testId?: string }) {
+  const [copied, setCopied] = useState(false)
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      /* ignore */
+    }
+  }
+  return (
+    <button
+      onClick={copy}
+      data-testid={testId}
+      aria-label={copied ? 'Copied' : 'Copy'}
+      style={{
+        background: 'transparent', border: 'none', padding: 6,
+        borderRadius: 6, cursor: 'pointer', color: 'var(--cx-muted-2)',
+        transition: 'background 150ms ease, color 150ms ease',
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--cx-gray-100)')}
+      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+    >
+      {copied
+        ? <Check width="14" height="14" style={{ color: 'var(--cx-success)' }} />
+        : <Copy width="14" height="14" />}
+    </button>
+  )
+}
+
+function OutputCard({
+  title, icon, children, copyText, testId, span,
+}: {
+  title: string
+  icon: React.ReactNode
+  children: React.ReactNode
+  copyText?: string
+  testId?: string
+  span?: boolean
+}) {
+  return (
+    <div
+      data-testid={testId}
+      style={{
+        background: '#fff',
+        border: '1px solid var(--cx-border)',
+        borderRadius: 12,
+        padding: 18,
+        boxShadow: 'var(--cx-shadow-sm)',
+        gridColumn: span ? '1 / -1' : 'auto',
+      }}
+    >
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        marginBottom: 10,
+      }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ color: 'var(--cx-brand)', display: 'inline-flex' }}>{icon}</span>
+          <span style={{
+            fontSize: 11, fontWeight: 600, letterSpacing: '0.08em',
+            color: 'var(--cx-muted-2)', textTransform: 'uppercase',
+          }}>{title}</span>
+        </div>
+        {copyText && <CopyBtn text={copyText} testId={testId ? `${testId}-copy` : undefined} />}
+      </div>
+      {children}
+    </div>
+  )
 }
 
 export default function AIContentGenerator() {
@@ -54,20 +111,13 @@ export default function AIContentGenerator() {
 
   const onImagePick = useCallback((file: File | null) => {
     setLocalError(null)
-    if (!file) {
-      setImageFile(null)
-      setImagePreview(null)
-      return
-    }
+    if (!file) { setImageFile(null); setImagePreview(null); return }
     if (!IMAGE_TYPES.includes(file.type)) {
-      setLocalError('Unsupported image type. Use JPG, PNG, or WEBP.')
-      return
+      setLocalError('Unsupported image type. Use JPG, PNG, or WEBP.'); return
     }
     if (file.size > MAX_IMAGE_BYTES) {
-      setLocalError('Image is too large (max 10MB).')
-      return
+      setLocalError('Image is too large (max 10MB).'); return
     }
-    // Clear video if image picked
     setVideoFile(null)
     setImageFile(file)
     const reader = new FileReader()
@@ -77,19 +127,13 @@ export default function AIContentGenerator() {
 
   const onVideoPick = useCallback((file: File | null) => {
     setLocalError(null)
-    if (!file) {
-      setVideoFile(null)
-      return
-    }
+    if (!file) { setVideoFile(null); return }
     if (!VIDEO_TYPES.includes(file.type)) {
-      setLocalError('Unsupported video type. Use MP4 or MOV.')
-      return
+      setLocalError('Unsupported video type. Use MP4 or MOV.'); return
     }
     if (file.size > MAX_VIDEO_BYTES) {
-      setLocalError('Video is too large (max 50MB).')
-      return
+      setLocalError('Video is too large (max 50MB).'); return
     }
-    // Clear image if video picked
     setImageFile(null)
     setImagePreview(null)
     setVideoFile(file)
@@ -111,378 +155,296 @@ export default function AIContentGenerator() {
     setIsLoading(true)
     setError(null)
     setResult(null)
-
     const form = new FormData()
     form.append('topic', topic.trim())
     if (imageFile) form.append('image', imageFile)
     else if (videoFile) form.append('video', videoFile)
-
     try {
       const res = await fetch(`${BACKEND_URL}/api/ai-content/generate`, {
-        method: 'POST',
-        body: form,
+        method: 'POST', body: form,
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         const msg =
           (typeof body?.detail === 'object' && body?.detail?.detail) ||
           (typeof body?.detail === 'string' && body.detail) ||
-          body?.error ||
-          `Request failed (${res.status})`
+          body?.error || `Request failed (${res.status})`
         throw new Error(String(msg))
       }
-      const data = (await res.json()) as GeneratedContent
-      setResult(data)
+      setResult((await res.json()) as GeneratedContent)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Generation failed'
-      setError(message)
+      setError(err instanceof Error ? err.message : 'Generation failed')
     } finally {
       setIsLoading(false)
     }
   }, [canSubmit, topic, imageFile, videoFile])
 
-  const reachTone: Record<string, 'green' | 'amber' | 'red'> = {
-    High: 'green',
-    Medium: 'amber',
-    Low: 'red',
+  const reachColor: Record<string, string> = {
+    High: 'var(--cx-success)',
+    Medium: 'var(--cx-warn)',
+    Low: '#EF4444',
+  }
+  const reachBg: Record<string, string> = {
+    High: '#D1FAE5',
+    Medium: '#FEF3C7',
+    Low: '#FEE2E2',
   }
 
   return (
-    <div className="space-y-5" data-testid="ai-content-generator-section">
-      {/* Input Area */}
-      <div className="d-card !p-6" data-testid="ai-content-input-card">
-        <div className="space-y-4">
-          <div>
-            <label
-              className="text-[12px] font-semibold uppercase tracking-[0.08em] mb-2 block"
-              style={{ color: 'var(--ink-400)' }}
-              htmlFor="ai-content-topic"
-            >
-              Topic
-            </label>
-            <input
-              id="ai-content-topic"
-              data-testid="ai-content-topic-input"
-              type="text"
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              placeholder="Enter your topic or describe your content…"
-              className="d-input text-[14px]"
-            />
-          </div>
+    <div data-testid="ai-content-generator-section" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* INPUT CARD */}
+      <div className="cx-card" data-testid="ai-content-input-card">
+        <div>
+          <label className="cx-label" htmlFor="ai-content-topic">Topic</label>
+          <input
+            id="ai-content-topic"
+            data-testid="ai-content-topic-input"
+            className="cx-input"
+            type="text"
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            placeholder="Enter your topic or describe your content…"
+          />
+        </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Image upload zone */}
-            <div>
-              <input
-                ref={imageInputRef}
-                type="file"
-                accept={IMAGE_TYPES.join(',')}
-                className="hidden"
-                onChange={(e) => onImagePick(e.target.files?.[0] || null)}
-                data-testid="ai-content-image-input"
-              />
-              {imagePreview ? (
-                <div
-                  className="relative rounded-xl overflow-hidden border"
-                  style={{
-                    borderColor: 'var(--ink-200)',
-                    background: 'var(--ink-100)',
-                    minHeight: 160,
-                  }}
-                  data-testid="ai-content-image-preview"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={imagePreview}
-                    alt="Upload preview"
-                    className="w-full h-[160px] object-cover"
-                  />
-                  <button
-                    onClick={clearImage}
-                    className="absolute top-2 right-2 p-1.5 rounded-full bg-white/90 backdrop-blur border hover:bg-white"
-                    style={{ borderColor: 'var(--ink-200)' }}
-                    aria-label="Remove image"
-                    data-testid="ai-content-image-clear"
-                  >
-                    <X className="w-3.5 h-3.5" style={{ color: 'var(--ink-600)' }} />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => imageInputRef.current?.click()}
-                  data-testid="ai-content-image-upload-btn"
-                  className="w-full rounded-xl border-2 border-dashed px-4 py-8 flex flex-col items-center justify-center gap-2 transition-all hover:border-[var(--brand-primary)] hover:bg-[var(--brand-soft)]"
-                  style={{ borderColor: 'var(--ink-200)', minHeight: 160 }}
-                >
-                  <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center"
-                    style={{ background: 'var(--brand-soft)' }}
-                  >
-                    <Camera className="w-5 h-5" style={{ color: 'var(--brand-primary)' }} />
-                  </div>
-                  <span className="text-[13px] font-semibold" style={{ color: 'var(--ink-900)' }}>
-                    Upload Image
-                  </span>
-                  <span className="text-[11px]" style={{ color: 'var(--ink-400)' }}>
-                    JPG, PNG, WEBP up to 10MB
-                  </span>
-                </button>
-              )}
-            </div>
-
-            {/* Video upload zone */}
-            <div>
-              <input
-                ref={videoInputRef}
-                type="file"
-                accept={VIDEO_TYPES.join(',')}
-                className="hidden"
-                onChange={(e) => onVideoPick(e.target.files?.[0] || null)}
-                data-testid="ai-content-video-input"
-              />
-              {videoFile ? (
-                <div
-                  className="relative rounded-xl border px-4 py-5 flex flex-col items-center justify-center gap-2"
-                  style={{
-                    borderColor: 'var(--ink-200)',
-                    background: 'var(--ink-100)',
-                    minHeight: 160,
-                  }}
-                  data-testid="ai-content-video-preview"
-                >
-                  <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center"
-                    style={{ background: 'var(--brand-soft)' }}
-                  >
-                    <Play className="w-5 h-5" style={{ color: 'var(--brand-primary)' }} />
-                  </div>
-                  <p
-                    className="text-[13px] font-semibold truncate max-w-full"
-                    style={{ color: 'var(--ink-900)' }}
-                  >
-                    {videoFile.name}
-                  </p>
-                  <PillBadge tone="brand">{formatBytes(videoFile.size)}</PillBadge>
-                  <button
-                    onClick={clearVideo}
-                    className="absolute top-2 right-2 p-1.5 rounded-full bg-white/90 backdrop-blur border hover:bg-white"
-                    style={{ borderColor: 'var(--ink-200)' }}
-                    aria-label="Remove video"
-                    data-testid="ai-content-video-clear"
-                  >
-                    <X className="w-3.5 h-3.5" style={{ color: 'var(--ink-600)' }} />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => videoInputRef.current?.click()}
-                  data-testid="ai-content-video-upload-btn"
-                  className="w-full rounded-xl border-2 border-dashed px-4 py-8 flex flex-col items-center justify-center gap-2 transition-all hover:border-[var(--brand-primary)] hover:bg-[var(--brand-soft)]"
-                  style={{ borderColor: 'var(--ink-200)', minHeight: 160 }}
-                >
-                  <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center"
-                    style={{ background: 'var(--brand-soft)' }}
-                  >
-                    <Play className="w-5 h-5" style={{ color: 'var(--brand-primary)' }} />
-                  </div>
-                  <span className="text-[13px] font-semibold" style={{ color: 'var(--ink-900)' }}>
-                    Upload Video
-                  </span>
-                  <span className="text-[11px]" style={{ color: 'var(--ink-400)' }}>
-                    MP4, MOV up to 50MB
-                  </span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          {localError && (
+        <div className="cx-grid-2" style={{ marginTop: 20 }}>
+          {/* Image */}
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept={IMAGE_TYPES.join(',')}
+            style={{ display: 'none' }}
+            onChange={(e) => onImagePick(e.target.files?.[0] || null)}
+            data-testid="ai-content-image-input"
+          />
+          {imagePreview ? (
             <div
-              className="flex items-center gap-2 text-[13px] rounded-lg px-3 py-2 border"
+              data-testid="ai-content-image-preview"
               style={{
-                background: 'var(--red-50)',
-                color: 'var(--red-500)',
-                borderColor: 'rgba(239,68,68,0.2)',
+                position: 'relative', height: 140, borderRadius: 12,
+                overflow: 'hidden', border: '1px solid var(--cx-border)',
+                background: 'var(--cx-gray-100)',
               }}
-              data-testid="ai-content-local-error"
             >
-              <AlertCircle className="w-4 h-4" /> {localError}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={imagePreview} alt="Upload preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <button
+                onClick={clearImage}
+                data-testid="ai-content-image-clear"
+                aria-label="Remove image"
+                style={{
+                  position: 'absolute', top: 8, right: 8,
+                  width: 28, height: 28, borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.95)',
+                  border: '1px solid var(--cx-border)',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <X width="14" height="14" style={{ color: 'var(--cx-ink-3)' }} />
+              </button>
             </div>
+          ) : (
+            <button
+              type="button"
+              className="cx-dropzone"
+              onClick={() => imageInputRef.current?.click()}
+              data-testid="ai-content-image-upload-btn"
+            >
+              <span className="cx-dz-icon"><Camera width="20" height="20" /></span>
+              <span className="cx-dz-label">Upload Image</span>
+              <span className="cx-dz-sub">JPG, PNG, WEBP up to 10MB</span>
+            </button>
           )}
 
-          <div className="flex justify-end">
-            <button
-              onClick={handleGenerate}
-              disabled={!canSubmit}
-              data-testid="ai-content-generate-btn"
-              className="d-btn-primary w-full sm:w-auto justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+          {/* Video */}
+          <input
+            ref={videoInputRef}
+            type="file"
+            accept={VIDEO_TYPES.join(',')}
+            style={{ display: 'none' }}
+            onChange={(e) => onVideoPick(e.target.files?.[0] || null)}
+            data-testid="ai-content-video-input"
+          />
+          {videoFile ? (
+            <div
+              data-testid="ai-content-video-preview"
+              style={{
+                position: 'relative', height: 140, borderRadius: 12,
+                border: '1px solid var(--cx-border)', background: 'var(--cx-gray-100)',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}
             >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Generating with GPT-4o…
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  Generate Content
-                </>
-              )}
+              <span className="cx-dz-icon" style={{ background: '#EDE9FE', color: 'var(--cx-brand)' }}>
+                <Play width="20" height="20" />
+              </span>
+              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--cx-ink-2)', maxWidth: 220, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {videoFile.name}
+              </span>
+              <span className="cx-chip">{formatBytes(videoFile.size)}</span>
+              <button
+                onClick={clearVideo}
+                data-testid="ai-content-video-clear"
+                aria-label="Remove video"
+                style={{
+                  position: 'absolute', top: 8, right: 8,
+                  width: 28, height: 28, borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.95)',
+                  border: '1px solid var(--cx-border)',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <X width="14" height="14" style={{ color: 'var(--cx-ink-3)' }} />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="cx-dropzone"
+              onClick={() => videoInputRef.current?.click()}
+              data-testid="ai-content-video-upload-btn"
+            >
+              <span className="cx-dz-icon"><Play width="20" height="20" /></span>
+              <span className="cx-dz-label">Upload Video</span>
+              <span className="cx-dz-sub">MP4, MOV up to 50MB</span>
             </button>
+          )}
+        </div>
+
+        {localError && (
+          <div
+            data-testid="ai-content-local-error"
+            style={{
+              marginTop: 16, display: 'flex', alignItems: 'center', gap: 8,
+              fontSize: 13, borderRadius: 10,
+              padding: '10px 12px', background: '#FEF2F2',
+              color: '#DC2626', border: '1px solid #FECACA',
+            }}
+          >
+            <AlertCircle width="14" height="14" /> {localError}
           </div>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
+          <button
+            onClick={handleGenerate}
+            disabled={!canSubmit}
+            className="cx-btn-primary"
+            data-testid="ai-content-generate-btn"
+          >
+            {isLoading
+              ? (<><Loader2 width="16" height="16" className="cx-spin" /> Generating with GPT-4o…</>)
+              : (<><Sparkles width="16" height="16" /> Generate Content</>)
+            }
+          </button>
         </div>
       </div>
 
-      {/* Error banner */}
+      {/* ERROR BANNER */}
       {error && (
         <div
-          className="d-card !p-4 flex items-start justify-between gap-3 border"
-          style={{ background: 'var(--red-50)', borderColor: 'rgba(239,68,68,0.25)' }}
           data-testid="ai-content-error-banner"
+          style={{
+            display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12,
+            padding: 14, borderRadius: 12,
+            background: '#FEF2F2', border: '1px solid #FECACA',
+          }}
         >
-          <div className="flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 mt-0.5" style={{ color: 'var(--red-500)' }} />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <AlertCircle width="16" height="16" style={{ color: '#DC2626', marginTop: 2 }} />
             <div>
-              <p className="text-[13px] font-semibold" style={{ color: 'var(--red-500)' }}>
-                Generation failed
-              </p>
-              <p className="text-[12px]" style={{ color: 'var(--ink-600)' }}>
-                {error}
-              </p>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#DC2626' }}>Generation failed</div>
+              <div style={{ fontSize: 12, color: 'var(--cx-ink-3)' }}>{error}</div>
             </div>
           </div>
-          <button
-            onClick={handleGenerate}
-            className="d-btn-ghost !text-[12px] !px-3 !py-1.5"
-            data-testid="ai-content-retry-btn"
-          >
-            <RefreshCw className="w-3.5 h-3.5" /> Retry
+          <button onClick={handleGenerate} className="cx-btn-ghost" data-testid="ai-content-retry-btn">
+            <RefreshCw width="14" height="14" /> Retry
           </button>
         </div>
       )}
 
-      {/* Skeleton state */}
+      {/* SKELETON */}
       {isLoading && !result && (
-        <div
-          className="grid grid-cols-1 sm:grid-cols-2 gap-4"
-          data-testid="ai-content-skeleton"
-          style={{ minHeight: 280 }}
-        >
-          <SkeletonCard height={120} className="sm:col-span-2" data-testid="skeleton-title" />
-          <SkeletonCard height={180} className="sm:col-span-2" data-testid="skeleton-desc" />
-          <SkeletonCard height={110} data-testid="skeleton-hashtags" />
-          <SkeletonCard height={110} data-testid="skeleton-keywords" />
-          <SkeletonCard height={90} data-testid="skeleton-type" />
-          <SkeletonCard height={90} data-testid="skeleton-reach" />
+        <div data-testid="ai-content-skeleton" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+          <div className="cx-skeleton" style={{ height: 120, gridColumn: '1 / -1' }} />
+          <div className="cx-skeleton" style={{ height: 180, gridColumn: '1 / -1' }} />
+          <div className="cx-skeleton" style={{ height: 110 }} />
+          <div className="cx-skeleton" style={{ height: 110 }} />
+          <div className="cx-skeleton" style={{ height: 90 }} />
+          <div className="cx-skeleton" style={{ height: 90 }} />
         </div>
       )}
 
-      {/* Output */}
+      {/* OUTPUT */}
       {result && !isLoading && (
         <div
-          className="grid grid-cols-1 sm:grid-cols-2 gap-4"
           data-testid="ai-content-output"
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}
         >
-          <ContentCard
-            title="Title"
-            copyText={result.title}
-            icon={<Type className="w-4 h-4" />}
-            className="sm:col-span-2"
-            data-testid="ai-content-result-title"
-          >
-            <p
-              className="text-[20px] font-bold leading-snug"
-              style={{ color: 'var(--ink-900)', fontFamily: 'var(--font-display)' }}
-            >
+          <OutputCard title="Title" icon={<Type width="14" height="14" />} copyText={result.title} testId="ai-content-result-title" span>
+            <div style={{
+              fontFamily: 'var(--cx-font-display)', fontSize: 20, fontWeight: 600,
+              color: 'var(--cx-ink-1)', lineHeight: 1.3, letterSpacing: '-0.01em',
+            }}>
               {result.title}
-            </p>
-          </ContentCard>
+            </div>
+          </OutputCard>
 
-          <ContentCard
-            title="Description"
-            copyText={result.description}
-            icon={<FileText className="w-4 h-4" />}
-            className="sm:col-span-2"
-            data-testid="ai-content-result-description"
-          >
-            <p
-              className="text-[14px] leading-relaxed whitespace-pre-line"
-              style={{ color: 'var(--ink-800)' }}
-            >
+          <OutputCard title="Description" icon={<FileText width="14" height="14" />} copyText={result.description} testId="ai-content-result-description" span>
+            <p style={{ fontSize: 14, color: 'var(--cx-ink-2)', lineHeight: 1.6, whiteSpace: 'pre-line', margin: 0 }}>
               {result.description}
             </p>
-          </ContentCard>
+          </OutputCard>
 
-          <ContentCard
+          <OutputCard
             title="Hashtags"
+            icon={<Hash width="14" height="14" />}
             copyText={result.hashtags.map((h) => `#${h}`).join(' ')}
-            icon={<Hash className="w-4 h-4" />}
-            data-testid="ai-content-result-hashtags"
+            testId="ai-content-result-hashtags"
           >
-            <div className="flex flex-wrap gap-2">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {result.hashtags.map((h, i) => (
-                <span
-                  key={`${h}-${i}`}
-                  className="inline-flex items-center rounded-full px-3 py-1 text-[12px] font-semibold"
-                  style={{ background: 'var(--brand-soft)', color: 'var(--brand-primary)' }}
-                  data-testid={`ai-content-hashtag-${i}`}
-                >
-                  #{h}
-                </span>
+                <span key={`${h}-${i}`} className="cx-chip" data-testid={`ai-content-hashtag-${i}`}>#{h}</span>
               ))}
             </div>
-          </ContentCard>
+          </OutputCard>
 
-          <ContentCard
+          <OutputCard
             title="Keywords"
+            icon={<Search width="14" height="14" />}
             copyText={result.keywords.join(', ')}
-            icon={<Search className="w-4 h-4" />}
-            data-testid="ai-content-result-keywords"
+            testId="ai-content-result-keywords"
           >
-            <div className="flex flex-wrap gap-2">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {result.keywords.map((k, i) => (
-                <span
-                  key={`${k}-${i}`}
-                  className="inline-flex items-center rounded-full px-3 py-1 text-[12px] font-semibold"
-                  style={{
-                    background: 'rgba(59,130,246,0.1)',
-                    color: 'var(--blue-500)',
-                  }}
-                  data-testid={`ai-content-keyword-${i}`}
-                >
-                  {k}
-                </span>
+                <span key={`${k}-${i}`} className="cx-chip cx-chip-blue" data-testid={`ai-content-keyword-${i}`}>{k}</span>
               ))}
             </div>
-          </ContentCard>
+          </OutputCard>
 
-          <ContentCard
-            title="Content Type"
-            icon={<Layers className="w-4 h-4" />}
-            data-testid="ai-content-result-type"
-          >
-            <div className="flex items-center gap-2">
-              <PillBadge tone="brand">{result.contentType}</PillBadge>
-            </div>
-          </ContentCard>
+          <OutputCard title="Content Type" icon={<Layers width="14" height="14" />} testId="ai-content-result-type">
+            <span className="cx-chip">{result.contentType}</span>
+          </OutputCard>
 
-          <ContentCard
-            title="Estimated Reach"
-            icon={<Gauge className="w-4 h-4" />}
-            data-testid="ai-content-result-reach"
-          >
-            <div className="flex items-center gap-2">
-              <PillBadge tone={reachTone[result.estimatedReach] || 'amber'}>
-                {result.estimatedReach}
-              </PillBadge>
-            </div>
-          </ContentCard>
+          <OutputCard title="Estimated Reach" icon={<Gauge width="14" height="14" />} testId="ai-content-result-reach">
+            <span
+              className="cx-chip"
+              style={{
+                background: reachBg[result.estimatedReach] || '#FEF3C7',
+                color: reachColor[result.estimatedReach] || 'var(--cx-warn)',
+              }}
+            >
+              {result.estimatedReach}
+            </span>
+          </OutputCard>
         </div>
       )}
+
+      <style jsx>{`
+        .cx-spin { animation: cx-rotate 0.9s linear infinite; }
+        @keyframes cx-rotate { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   )
 }
