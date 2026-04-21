@@ -152,9 +152,10 @@ export default function HomePage() {
         )}
 
         {/* ============ NEW: AI CONTENT GENERATOR ============ */}
+        <SectionDivider />
         <motion.section
           variants={fadeUp}
-          className="pt-2"
+          className="pt-6"
           data-testid="section-ai-content"
         >
           <SectionHeader
