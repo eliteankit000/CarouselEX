@@ -130,34 +130,6 @@ export default function HomePage() {
   return (
     <>
       <motion.div variants={stagger} initial="hidden" animate="visible" className="max-w-[1120px] mx-auto space-y-6" data-testid="home-page">
-        {/* Heading + Input */}
-        <motion.div variants={fadeUp} className="text-center pt-4 mb-2">
-          <h1 className="text-[28px] font-extrabold tracking-[-0.03em] mb-1" style={{ color: 'var(--ink-900)', fontFamily: 'var(--font-display)' }}>CarouselEx</h1>
-          <p className="text-[15px]" style={{ color: 'var(--ink-400)' }}>What do you want to create today?</p>
-        </motion.div>
-
-        <motion.div variants={fadeUp} className="d-card !p-5 max-w-[720px] mx-auto">
-          <textarea value={input} onChange={e => setInput(e.target.value)} placeholder="Describe your idea, topic, or paste content..."
-            className="d-input resize-none min-h-[80px] text-[15px]" rows={3} data-testid="home-topic-input" />
-          <div className="flex flex-wrap gap-2 mt-3">
-            {[{ label: 'Carousel', type: 'carousel', icon: LayoutGrid }, { label: 'Poll Content', type: 'poll', icon: BarChart3 }, { label: 'Viral Post', type: 'viral-post', icon: MessageSquare }].map(c => (
-              <button key={c.type} onClick={() => router.push(`/dashboard/create?topic=${encodeURIComponent(input.trim())}&type=${c.type}`)}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl text-[12px] font-semibold border transition-all hover:border-[var(--brand-primary)] hover:bg-[var(--brand-soft)]"
-                style={{ borderColor: 'var(--ink-200)', color: 'var(--ink-600)' }} data-testid={`home-chip-${c.type}`}>
-                <c.icon className="w-3.5 h-3.5" /> {c.label}
-              </button>
-            ))}
-            <Link href="/dashboard/create?tab=repurpose" className="flex items-center gap-2 px-3 py-2 rounded-xl text-[12px] font-semibold border transition-all hover:border-[var(--brand-primary)] hover:bg-[var(--brand-soft)]"
-              style={{ borderColor: 'var(--ink-200)', color: 'var(--ink-600)' }} data-testid="home-chip-repurpose">
-              <RefreshCw className="w-3.5 h-3.5" /> Repurpose
-            </Link>
-          </div>
-          <button onClick={handleStart} className="w-full mt-4 py-3.5 rounded-2xl font-bold text-[15px] text-white relative overflow-hidden group"
-            style={{ background: 'var(--brand-gradient)', boxShadow: 'var(--shadow-brand)' }} data-testid="home-start-btn">
-            <span className="relative flex items-center justify-center gap-2"><Sparkles className="w-4 h-4" /> Start Creating <ArrowRight className="w-4 h-4" /></span>
-          </button>
-        </motion.div>
-
         {/* Active Systems Status */}
         {(voiceProfile || dna || persona) && (
           <motion.div variants={fadeUp} className="flex flex-wrap gap-2 justify-center">
@@ -180,10 +152,9 @@ export default function HomePage() {
         )}
 
         {/* ============ NEW: AI CONTENT GENERATOR ============ */}
-        <SectionDivider />
         <motion.section
           variants={fadeUp}
-          className="pt-6"
+          className="pt-2"
           data-testid="section-ai-content"
         >
           <SectionHeader
