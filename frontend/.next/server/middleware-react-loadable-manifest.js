@@ -1,1 +1,1 @@
-self.__REACT_LOADABLE_MANIFEST="{\"app/dashboard/page.tsx -> @/components/ViralCarouselIdeas\":{\"id\":\"app/dashboard/page.tsx -> @/components/ViralCarouselIdeas\",\"files\":[\"static/chunks/_app-pages-browser_src_components_ViralCarouselIdeas_tsx.js\"]}}"
+self.__REACT_LOADABLE_MANIFEST="{}"
